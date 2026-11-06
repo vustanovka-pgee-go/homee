@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Смарт къща – сензори</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e8eee9;--panel:#f7faf7;--ink:#17302c;--mute:#5d716c;--line:#cbd8d1;--accent:#0f766e;--warn:#c2410c;--ok:#15803d;--blue:#2563eb;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1917;--panel:#162623;--ink:#e3efea;--mute:#8aa39c;--line:#274039;--accent:#2dd4bf;--warn:#fb923c;--ok:#4ade80;--blue:#60a5fa;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1917;--panel:#162623;--ink:#e3efea;--mute:#8aa39c;--line:#274039;--accent:#2dd4bf;--warn:#fb923c;--ok:#4ade80;--blue:#60a5fa;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.4}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+h1{font-size:clamp(26px,5vw,40px);font-weight:800;margin:0;letter-spacing:-.02em}
+h2{font-size:15px;font-weight:600;color:var(--mute);margin:26px 0 10px}
+.status{text-align:right;font-size:14px;color:var(--mute)}
+.status b{color:var(--ink);font-size:22px;font-weight:600;display:block}
+.live{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok);margin-right:6px}
+.live.pulse{animation:p 1.2s ease-out 2}
+@keyframes p{0%{box-shadow:0 0 0 0 var(--ok)}100%{box-shadow:0 0 0 12px transparent}}
+.rooms{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--ink);padding:6px;border-radius:6px}
+.room{background:var(--panel);padding:14px 14px 12px;border-left:6px solid var(--c);min-height:150px;position:relative}
+.room h3{margin:0;font-size:16px;font-weight:600}
+.room .t{font-size:40px;font-weight:800;letter-spacing:-.03em;margin:4px 0 2px}
+.room .t small{font-size:18px;font-weight:600;color:var(--mute)}
+.room dl{display:flex;flex-wrap:wrap;gap:2px 14px;margin:0;font-size:13px;color:var(--mute)}
+.room dd{margin:0;color:var(--ink)}
+.room dl div{display:flex;gap:5px}
+.tags{position:absolute;top:12px;right:12px;display:flex;gap:6px}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.tag.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.tag.lit{background:#f59e0b;border-color:#f59e0b;color:#2b1d00}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card .l{font-size:13px;color:var(--mute)}
+.card .v{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:2px 0}
+.card .v small{font-size:14px;font-weight:600;color:var(--mute);margin-left:3px}
+.card .d{font-size:12px;color:var(--mute);height:16px}
+.card svg{width:100%;height:36px;display:block;margin-top:6px}
+.sec{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.s{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+.s i{width:10px;height:10px;border-radius:50%;background:var(--ok);flex:none}
+.s.w i{background:var(--warn)}
+.s span{color:var(--mute);display:block;font-size:12px}
+.up{color:var(--warn)}.dn{color:var(--blue)}
+footer{margin-top:28px;font-size:12px;color:var(--mute)}
+@media(max-width:720px){.rooms{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:440px){.rooms{grid-template-columns:1fr}.status{text-align:left}}
+@media(prefers-reduced-motion:reduce){.live.pulse{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>Моят дом</h1><div style="color:var(--mute);font-size:14px" id="heat"></div></div>
+  <div class="status"><b id="clock">--:--:--</b><span class="live" id="dot"></span><span id="upd"></span></div>
+</header>
+<h2>Стаи</h2>
+<div class="rooms" id="rooms"></div>
+<h2>Енергия, вода и въздух</h2>
+<div class="grid" id="metrics"></div>
+<h2>Сигурност и устройства</h2>
+<div class="sec" id="sec"></div>
+<footer>Стойностите се обновяват на всеки 5 минути. Графиките показват последните 8 часа.</footer>
+</div>
+<script>
+const SL=300000, TAU=Math.PI*2;
+const $=s=>document.querySelector(s);
+const hrs=s=>{const d=new Date(s*SL);return d.getHours()+d.getMinutes()/60};
+function r(id,n){let x=0;for(let i=0;i<id.length;i++)x=(x*31+id.charCodeAt(i))|0;x^=Math.imul(n,374761393);x=Math.imul(x^(x>>>13),1274126177);x^=x>>>16;return(x>>>0)/4294967295*2-1}
+function ns(id,s){const k=Math.floor(s/12),f=s/12-k,a=r(id,k),b=r(id,k+1);return .65*(a+(b-a)*f*f*(3-2*f))+.35*r(id,s)}
+const bump=(h,c,w)=>Math.exp(-((h-c)**2)/(2*w*w));
+const night=h=>h>=23||h<6.5;
+
+const outT=s=>9+5.5*Math.sin(TAU*(hrs(s)-9)/24)+ns('ot',s)*1.4;
+const press=s=>1016+ns('p',s)*6;
+const lux=s=>{const h=hrs(s);return h<6.8||h>17.2?0:Math.max(0,22000*Math.sin(Math.PI*(h-6.8)/10.4)*(.45+.55*(ns('lx',s)*.5+.5)))};
+const solar=s=>{const h=hrs(s);return h<7||h>17?0:2800*Math.sin(Math.PI*(h-7)/10)*(.5+.5*(ns('so',s)*.5+.5))};
+const power=s=>{const h=hrs(s);let p=260+90*ns('pw',s)+900*bump(h,7.4,.7)+1400*bump(h,19,1.3)+450*bump(h,13,.8);if(outT(s)<9)p+=320;if(h>17&&h<20&&r('ov',s)>.82)p+=1800;return Math.max(120,p)};
+const waterL=s=>{const h=hrs(s);let w=.15+13*bump(h,7.2,.5)+9*bump(h,19.6,.8)+5*bump(h,13,.5);if(r('wt',s)>.7)w+=5*(r('wa',s)*.5+.5);return Math.max(0,w*(.8+.2*(ns('wf',s)*.5+.5)))};
+const pm=s=>Math.max(2,8+ns('pm',s)*4+11*bump(hrs(s),19.2,.7)+5*bump(hrs(s),7.5,.5));
+
+const ROOMS=[
+ {id:'liv',n:'Всекидневна',t:22.1},{id:'kit',n:'Кухня',t:21.8},{id:'bed',n:'Спалня',t:19.8},
+ {id:'kid',n:'Детска',t:21},{id:'bath',n:'Баня',t:23},{id:'off',n:'Кабинет',t:21.4}];
+function occ(id,h){const p={
+ liv:bump(h,20,2.3)*.6+bump(h,8,.7)*.3+.12,
+ kit:bump(h,7.5,.6)*.6+bump(h,13,.5)*.3+bump(h,18.8,.9)*.6+.04,
+ bed:night(h)?.95:.04,
+ kid:bump(h,20.5,1)*.6+bump(h,7.6,.6)*.5+(h>9&&h<16?0:.1),
+ bath:bump(h,7.2,.5)*.4+bump(h,21.3,.7)*.3+.03,
+ off:h>9&&h<17?.55:.05}[id];return Math.min(.97,p)}
+function room(R,s){const h=hrs(s),id=R.id;
+ let t=R.t+.15*(outT(s)-9)+ns(id+'t',s)*.5;
+ if(id==='bed'&&night(h))t-=.6; if(id==='kit')t+=1.2*bump(h,18.8,.8)+.9*bump(h,7.5,.5);
+ let hum=46+ns(id+'h',s)*4; if(id==='bath')hum+=18*(bump(h,7.2,.5)+bump(h,21.3,.5));
+ const p=occ(id,h), mv=(r(id+'m',Math.floor(s/2))*.5+.5)<p;
+ let co2=420+ns(id+'c',s)*30+p*350+(mv?120:0); if(id==='bed'&&night(h))co2+=250;
+ const light=mv&&(h<7.5||h>16.5||id==='bath');
+ return{t,hum,co2,mv,light}}
+
+function spark(fn,s,col){const n=96,v=[];for(let i=n-1;i>=0;i--)v.push(fn(s-i));
+ const mn=Math.min(...v),mx=Math.max(...v),pts=v.map((y,i)=>(i/(n-1)*120).toFixed(1)+','+(33-(y-mn)/((mx-mn)||1)*30).toFixed(1)).join(' ');
+ return`<svg viewBox="0 0 120 36" preserveAspectRatio="none"><polyline fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" points="${pts}"/></svg>`}
+function sumToday(fn,s){const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();let a=0;for(let k=Math.floor(m/SL);k<=s;k++)a+=fn(k);return a}
+const tc=t=>`hsl(${Math.max(0,Math.min(210,210-(t-18)*32))} 70% 48%)`;
+const f1=v=>v.toFixed(1).replace('.',','), f0=v=>Math.round(v).toLocaleString('bg-BG');
+
+const METRICS=[
+ {l:'Потребление сега',u:'W',fn:power,f:f0,c:'#ea580c'},
+ {l:'Слънчева продукция',u:'W',fn:solar,f:f0,c:'#ca8a04'},
+ {l:'Външна температура',u:'°C',fn:outT,f:f1,c:'#2563eb'},
+ {l:'Налягане',u:'hPa',fn:press,f:f0,c:'#7c3aed'},
+ {l:'Външна осветеност',u:'lx',fn:lux,f:f0,c:'#d97706'},
+ {l:'Фини прахови частици PM2.5',u:'µg/m³',fn:pm,f:f1,c:'#0f766e'},
+ {l:'Среден CO₂ в къщата',u:'ppm',fn:s=>ROOMS.reduce((a,R)=>a+room(R,s).co2,0)/ROOMS.length,f:f0,c:'#0891b2'},
+ {l:'Средна влажност',u:'%',fn:s=>ROOMS.reduce((a,R)=>a+room(R,s).hum,0)/ROOMS.length,f:f0,c:'#2563eb'}];
+
+function render(){
+ const s=Math.floor(Date.now()/SL), h=hrs(s);
+ const rs=ROOMS.map(R=>({R,a:room(R,s),b:room(R,s-1)}));
+ $('#rooms').innerHTML=rs.map(({R,a})=>`<div class="room" style="--c:${tc(a.t)}">
+  <div class="tags">${a.mv?'<span class="tag on">движение</span>':''}${a.light?'<span class="tag lit">светлина</span>':''}</div>
+  <h3>${R.n}</h3><div class="t">${f1(a.t)}<small>°C</small></div>
+  <dl><div>Влажност <dd>${f0(a.hum)}%</dd></div><div>CO₂ <dd>${f0(a.co2)} ppm</dd></div></dl></div>`).join('');
+ const avg=rs.reduce((x,o)=>x+o.a.t,0)/rs.length;
+ $('#heat').textContent=`Целева температура 21,5 °C. Отоплението е ${avg<21.2?'включено':'изключено'}.`;
+ const todayKwh=sumToday(power,s)*5/60/1000, todayW=sumToday(waterL,s), todaySol=sumToday(solar,s)*5/60/1000;
+ const cards=METRICS.map(m=>{const v=m.fn(s),p=m.fn(s-1),d=v-p;
+  return`<div class="card"><div class="l">${m.l}</div><div class="v">${m.f(v)}<small>${m.u}</small></div>
+  <div class="d ${d>0?'up':'dn'}">${Math.abs(d)<.005?'без промяна':(d>0?'▲ ':'▼ ')+m.f(Math.abs(d))+' за 5 мин'}</div>${spark(m.fn,s,m.c)}</div>`});
+ cards.push(`<div class="card"><div class="l">Консумация днес</div><div class="v">${f1(todayKwh)}<small>kWh</small></div><div class="d">Произведени: ${f1(todaySol)} kWh</div></div>`);
+ cards.push(`<div class="card"><div class="l">Вода днес</div><div class="v">${f0(todayW)}<small>л</small></div><div class="d">Поток сега: ${f1(waterL(s)/5)} л/мин</div></div>`);
+ $('#metrics').innerHTML=cards.join('');
+ const fd=r('fd',s)>.9&&((h>7&&h<9)||(h>17&&h<19)), gr=r('gr',s)>.92&&(h>7.5&&h<9||h>17&&h<19);
+ const win=h>9&&h<20?Math.max(0,Math.round((r('wn',Math.floor(s/36))+1)*1.2)):0;
+ const bat=Math.round(62+(r('b',Math.floor(s/288))+1)*4);
+ const it=[['Входна врата',fd?'отворена':'затворена',fd],['Гараж',gr?'отворен':'затворен',gr],
+  ['Прозорци',win?win+' отворени':'всички затворени',win>0],['Датчици за дим','всичко е наред',false],
+  ['Датчици за теч','сухо във всички зони',false],['Батерии на сензорите','най-ниска '+bat+'%',bat<50]];
+ $('#sec').innerHTML=it.map(([a,b,w])=>`<div class="s ${w?'w':''}"><i></i><div>${a}<span>${b}</span></div></div>`).join('');
+ const d=new Date(s*SL);
+ $('#upd').textContent='Обновено в '+d.toLocaleTimeString('bg-BG',{hour:'2-digit',minute:'2-digit'})+', следва след ';
+ const dot=$('#dot');dot.classList.remove('pulse');void dot.offsetWidth;dot.classList.add('pulse');
+ return s}
+let cur=render();
+function tick(){const n=Date.now(),s=Math.floor(n/SL);
+ $('#clock').textContent=new Date(n).toLocaleTimeString('bg-BG');
+ if(s!==cur)cur=render();
+ const left=Math.ceil((SL-n%SL)/1000);
+ $('#upd').firstChild.nodeValue=$('#upd').textContent.replace(/следва след.*$/,'следва след ')+String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0')}
+tick();setInterval(tick,1000);
+</script>
+</body>
+</html>
